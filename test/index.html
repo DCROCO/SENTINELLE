@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Carte des établissements scolaires - R8</title>
+
+
+    <!-- =====================================================
+         LEAFLET
+    ====================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+
+    <style>
+
+        /* =====================================================
+           PAGE
+        ====================================================== */
+
+        html,
+        body {
+
+            height: 100%;
+            margin: 0;
+            padding: 0;
+
+            font-family: Arial, sans-serif;
+
+        }
+
+
+        #map {
+
+            width: 100%;
+            height: 100%;
+
+        }
+
+
+        /* =====================================================
+           BOUTON MENU - HAUT DROITE
+        ====================================================== */
+
+        #menuButton {
+
+            position: absolute;
+
+            top: 15px;
+            right: 15px;
+
+            z-index: 2000;
+
+            width: 45px;
+            height: 45px;
+
+            border: none;
+
+            border-radius: 7px;
+
+            background: white;
+
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.35);
+
+            font-size: 24px;
+
+            cursor: pointer;
+
+        }
+
+
+        #menuButton:hover {
+
+            background: #f2f2f2;
+
+        }
+
+
+        /* =====================================================
+           PANNEAU - HAUT DROITE
+        ====================================================== */
+
+        #controls {
+
+            position: absolute;
+
+            top: 70px;
+            right: 15px;
+
+            z-index: 1500;
+
+            width: 320px;
+
+            background: white;
+
+            padding: 15px;
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 2px 12px rgba(0,0,0,0.35);
+
+            box-sizing: border-box;
+
+            transition:
+                transform 0.25s ease,
+                opacity 0.25s ease;
+
+        }
+
+
+        /* Panneau fermé */
+
+        #controls.hidden {
+
+            transform:
+                translateX(350px);
+
+            opacity: 0;
+
+            pointer-events: none;
+
+        }
+
+
+        #controls h3 {
+
+            margin: 0 0 12px 0;
+
+            font-size: 18px;
+
+        }
+
+
+        /* =====================================================
+           BARRE DE RECHERCHE
+        ====================================================== */
+
+        #searchContainer {
+
+            position: relative;
+
+        }
+
+
+        #search {
+
+            box-sizing: border-box;
+
+            width: 100%;
+
+            padding: 10px;
+
+            border: 1px solid #bbb;
+
+            border-radius: 5px;
+
+            font-size: 14px;
+
+            outline: none;
+
+        }
+
+
+        #search:focus {
+
+            border-color: #666;
+
+        }
+
+
+        /* =====================================================
+           PROPOSITIONS
+        ====================================================== */
+
+        #suggestions {
+
+            position: absolute;
+
+            top: 100%;
+
+            left: 0;
+
+            right: 0;
+
+            z-index: 3000;
+
+            background: white;
+
+            border: 1px solid #ccc;
+
+            border-top: none;
+
+            border-radius:
+                0 0 5px 5px;
+
+            max-height: 280px;
+
+            overflow-y: auto;
+
+            display: none;
+
+            box-shadow:
+                0 3px 8px rgba(0,0,0,0.2);
+
+        }
+
+
+        .suggestion {
+
+            padding: 10px;
+
+            cursor: pointer;
+
+            border-bottom:
+                1px solid #eee;
+
+        }
+
+
+        .suggestion:last-child {
+
+            border-bottom: none;
+
+        }
+
+
+        .suggestion:hover {
+
+            background: #f2f2f2;
+
+        }
+
+
+        .suggestion-name {
+
+            font-weight: bold;
+
+            font-size: 14px;
+
+        }
+
+
+        .suggestion-info {
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-top: 4px;
+
+        }
+
+
+        /* =====================================================
+           FILTRES
+        ====================================================== */
+
+        .filters {
+
+            margin-top: 15px;
+
+            padding-top: 10px;
+
+            border-top:
+                1px solid #eee;
+
+        }
+
+
+        .filter {
+
+            margin: 8px 0;
+
+            font-size: 14px;
+
+        }
+
+
+        .filter label {
+
+            cursor: pointer;
+
+        }
+
+
+        .filter-color {
+
+            display: inline-block;
+
+            width: 14px;
+            height: 14px;
+
+            border-radius: 50%;
+
+            margin-right: 6px;
+
+            border: 1px solid #555;
+
+            vertical-align: -2px;
+
+        }
+
+
+        /* =====================================================
+           MESSAGE
+        ====================================================== */
+
+        #message {
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-top: 10px;
+
+            padding-top: 8px;
+
+            border-top:
+                1px solid #eee;
+
+        }
+
+
+        /* =====================================================
+           POPUP
+        ====================================================== */
+
+        .popup-title {
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            margin-bottom: 8px;
+
+        }
+
+
+        .popup-type {
+
+            font-size: 13px;
+
+            color: #555;
+
+            margin-bottom: 8px;
+
+        }
+
+
+        .popup-address {
+
+            font-size: 14px;
+
+            line-height: 1.5;
+
+        }
+
+
+        /* =====================================================
+           LEGENDE
+        ====================================================== */
+
+        .legend {
+
+            background: white;
+
+            padding: 10px 14px;
+
+            border-radius: 7px;
+
+            box-shadow:
+                0 0 10px rgba(0,0,0,0.3);
+
+            font-size: 14px;
+
+            line-height: 24px;
+
+        }
+
+
+        .legend-title {
+
+            font-weight: bold;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .legend-item {
+
+            display: flex;
+
+            align-items: center;
+
+        }
+
+
+        .legend-color {
+
+            width: 14px;
+            height: 14px;
+
+            border-radius: 50%;
+
+            margin-right: 8px;
+
+            border: 1px solid #555;
+
+        }
+
+
+        /* =====================================================
+           TRIANGLE ROUGE AVEC 8
+        ====================================================== */
+
+        .triangle-8 {
+
+            width: 0;
+            height: 0;
+
+            border-left:
+                20px solid transparent;
+
+            border-right:
+                20px solid transparent;
+
+            border-bottom:
+                36px solid red;
+
+            position: relative;
+
+        }
+
+
+        .triangle-8 span {
+
+            position: absolute;
+
+            left: -20px;
+
+            top: 12px;
+
+            width: 40px;
+
+            text-align: center;
+
+            color: white;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            font-family: Arial, sans-serif;
+
+        }
+
+
+        /* =====================================================
+           SMARTPHONE
+        ====================================================== */
+
+        @media (max-width: 600px) {
+
+            #controls {
+
+                width:
+                    calc(100% - 30px);
+
+                max-width: 350px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================================
+     BOUTON MENU
+========================================================= -->
+
+<button id="menuButton">
+
+    ☰
+
+</button>
+
+
+<!-- =========================================================
+     PANNEAU
+========================================================= -->
+
+<div id="controls">
+
+
+    <h3>
+        <img src="logo_stl.jpeg" alt="" style="width: 48px; height: 48px; vertical-align: middle;">
+Établissements scolaires
+    </h3>
+
+
+    <!-- =====================================================
+         RECHERCHE
+    ====================================================== -->
+
+    <div id="searchContainer">
+
+        <input
+            type="text"
+            id="search"
+            placeholder="Rechercher un établissement..."
+            autocomplete="off"
+        >
+
+
+        <div id="suggestions"></div>
+
+    </div>
+
+
+    <!-- =====================================================
+         FILTRES
+    ====================================================== -->
+
+    <div class="filters">
+
+
+        <div class="filter">
+
+            <label>
+
+                <input
+                    type="checkbox"
+                    id="filterchretien"
+                    checked
+                >
+
+                <span
+                    class="filter-color"
+                    style="background:white">
+                </span>
+
+                Chrétiens
+
+            </label>
+
+        </div>
+
+
+        <div class="filter">
+
+            <label>
+
+                <input
+                    type="checkbox"
+                    id="filterjuif"
+                    checked
+                >
+
+                <span
+                    class="filter-color"
+                    style="background:#FFEE8C">
+                </span>
+
+                Juifs
+
+            </label>
+
+        </div>
+
+
+        <div class="filter">
+
+            <label>
+
+                <input
+                    type="checkbox"
+                    id="filtermusulman"
+                    checked
+                >
+
+                <span
+                    class="filter-color"
+                    style="background:green">
+                </span>
+
+                Musulmans
+
+            </label>
+
+        </div>
+
+	<div class="filter">
+
+           <label>
+
+                <input
+                    type="checkbox"
+                    id="filterlaique"
+                    checked
+                >
+
+                <span
+                    class="filter-color"
+                    style="background:#000091">
+                </span>
+
+                Laïques
+
+            </label>
+
+        </div>
+
+
+
+    </div>
+
+
+    <div id="message">
+
+        Chargement des établissements...
+
+    </div>
+
+
+</div>
+
+
+<!-- =========================================================
+     CARTE
+========================================================= -->
+
+<div id="map"></div>
+
+
+<!-- =========================================================
+     LEAFLET
+========================================================= -->
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
+<script>
+
+
+// ============================================================
+// 1. CREATION DE LA CARTE
+// ============================================================
+
+const map =
+    L.map('map').setView(
+
+        [
+            48.85,
+            2.35
+        ],
+
+        10
+
+    );
+
+
+// ============================================================
+// 2. FOND SATELLITE
+// ============================================================
+
+L.tileLayer(
+
+    'https://server.arcgisonline.com/ArcGIS/rest/services/' +
+    'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+
+    {
+
+        attribution:
+            '© Esri, Maxar, Earthstar Geographics'
+
+    }
+
+).addTo(map);
+
+
+// ============================================================
+// 3. GROUPES D'ETABLISSEMENTS
+// ============================================================
+
+const chretienLayer =
+    L.layerGroup().addTo(map);
+
+const juifLayer =
+    L.layerGroup().addTo(map);
+
+const musulmanLayer =
+    L.layerGroup().addTo(map);
+
+const laiqueLayer =
+    L.layerGroup().addTo(map);
+
+
+// ============================================================
+// 4. LISTE DES ETABLISSEMENTS
+// ============================================================
+
+let toutesLesEcoles = [];
+
+
+// ============================================================
+// 5. NORMALISATION DES TEXTES
+// ============================================================
+
+function normaliser(texte) {
+
+    return String(texte || '')
+
+        .trim()
+
+        .toLowerCase()
+
+        .normalize('NFD')
+
+        .replace(
+            /[\u0300-\u036f]/g,
+            ''
+        );
+
+}
+
+
+// ============================================================
+// 6. DETERMINATION DU TYPE
+// ============================================================
+
+function determinerType(type) {
+
+    const texte =
+        normaliser(type);
+
+
+    /*
+     * Les valeurs attendues sont :
+     *
+     * Ecole
+     * Collège
+     * Lycée
+     *
+     * La normalisation transforme :
+     *
+     * Ecole   -> ecole
+     * Collège -> college
+     * Lycée   -> lycee
+     */
+
+
+    if (
+        texte === 'juive'
+    ) {
+
+        return 'juif';
+
+    }
+
+
+    if (
+        texte === 'musulmane'
+    ) {
+
+        return 'musulman';
+
+    }
+
+
+    if (
+        texte === 'chretienne'
+    ) {
+
+        return 'chretien';
+
+    }
+
+
+    return 'laique';
+
+}
+
+
+// ============================================================
+// 7. COULEUR
+// ============================================================
+
+function couleurType(type) {
+
+    if (
+        type === 'musulman'
+    ) {
+
+        return 'green';
+
+    }
+
+
+    if (
+        type === 'chretien'
+    ) {
+
+        return 'white';
+
+    }
+
+
+    if (
+        type === 'juif'
+    ) {
+
+        return '#FFEE8C';
+
+    }
+
+
+    return '#000091';
+
+}
+
+
+// ============================================================
+// 8. ICONE DES ETABLISSEMENTS
+// ============================================================
+
+function creerIcone(couleur) {
+
+    return L.divIcon({
+
+        className: '',
+
+        html:
+
+            '<div style="' +
+
+            'width:16px;' +
+
+            'height:16px;' +
+
+            'background:' +
+            couleur +
+            ';' +
+
+            'border-radius:50%;' +
+
+            'box-shadow:' +
+            '0 1px 4px rgba(0,0,0,0.5);' +
+
+            '"></div>',
+
+        iconSize: [
+            16,
+            16
+        ],
+
+        iconAnchor: [
+            8,
+            8
+        ],
+
+        popupAnchor: [
+            0,
+            -8
+        ]
+
+    });
+
+}
+
+
+// ============================================================
+// 9. CREATION D'UN ETABLISSEMENT
+// ============================================================
+
+function creerEtablissement(feature) {
+
+
+    const props =
+        feature.properties || {};
+
+
+    // --------------------------------------------------------
+    // NOM
+    // --------------------------------------------------------
+
+    const nom =
+        props.Nom_etabli ||
+        'Nom inconnu';
+
+
+    // --------------------------------------------------------
+    // ADRESSE
+    // --------------------------------------------------------
+
+    const adresse =
+        props.Adresse_1 ||
+        'Adresse inconnue';
+
+
+    // --------------------------------------------------------
+    // TYPE
+    // --------------------------------------------------------
+
+    const typeOriginal =
+        props.confession ||
+        '';
+
+
+    const type =
+        determinerType(
+            typeOriginal
+        );
+
+
+    const couleur =
+        couleurType(type);
+
+
+    // --------------------------------------------------------
+    // GEOMETRIE
+    // --------------------------------------------------------
+
+    if (
+        !feature.geometry ||
+        feature.geometry.type !== 'Point'
+    ) {
+
+        return;
+
+    }
+
+
+    const coordinates =
+        feature.geometry.coordinates;
+
+
+    if (
+        !coordinates ||
+        coordinates.length < 2
+    ) {
+
+        return;
+
+    }
+
+
+    const longitude =
+        Number(
+            coordinates[0]
+        );
+
+
+    const latitude =
+        Number(
+            coordinates[1]
+        );
+
+
+    if (
+        isNaN(latitude) ||
+        isNaN(longitude)
+    ) {
+
+        return;
+
+    }
+
+
+    // --------------------------------------------------------
+    // MARQUEUR
+    // --------------------------------------------------------
+
+    const marker =
+        L.marker(
+
+            [
+                latitude,
+                longitude
+            ],
+
+            {
+
+                icon:
+                    creerIcone(
+                        couleur
+                    )
+
+            }
+
+        );
+
+
+    // --------------------------------------------------------
+    // POPUP
+    // --------------------------------------------------------
+
+    const popup =
+
+        '<div class="popup-title">' +
+
+        nom +
+
+        '</div>' +
+
+
+        '<div class="popup-type">' +
+
+        '<strong>Type :</strong> ' +
+
+        typeOriginal +
+
+        '</div>' +
+
+
+        '<div class="popup-address">' +
+
+        '<strong>Adresse :</strong><br>' +
+
+        adresse +
+
+        '</div>';
+
+
+    marker.bindPopup(
+        popup
+    );
+
+
+    // --------------------------------------------------------
+    // AJOUT AU GROUPE CORRESPONDANT
+    // --------------------------------------------------------
+
+    if (
+        type === 'juif'
+    ) {
+
+        juifLayer.addLayer(
+            marker
+        );
+
+    }
+
+
+    else if (
+        type === 'chretien'
+    ) {
+
+        chretienLayer.addLayer(
+            marker
+        );
+
+    }
+
+
+    else if (
+        type === 'musulman'
+    ) {
+
+        musulmanLayer.addLayer(
+            marker
+        );
+
+    }
+
+     else if (
+        type === 'laique'
+    ) {
+
+        laiqueLayer.addLayer(
+            marker
+        );
+
+    }
+
+
+
+    else {
+
+        /*
+         * Si une valeur inattendue est rencontrée,
+         * le point reste bleu.
+         */
+
+        marker.addTo(map);
+
+    }
+
+
+    // --------------------------------------------------------
+    // STOCKAGE
+    // --------------------------------------------------------
+
+    toutesLesEcoles.push({
+
+        marker:
+            marker,
+
+        nom:
+            nom,
+
+        adresse:
+            adresse,
+
+        type:
+            type,
+
+        typeOriginal:
+            typeOriginal,
+
+        latitude:
+            latitude,
+
+        longitude:
+            longitude
+
+    });
+
+}
+
+
+// ============================================================
+// 10. CHARGEMENT DU GEOJSON
+// ============================================================
+//
+// IMPORTANT
+//
+// index.html
+// ECOLES_92_WB_FINIE.geojson
+//
+// doivent être dans le même dossier.
+//
+// ============================================================
+
+fetch(
+    'ECOLES_92_WB_FINIE.geojson'
+)
+
+
+.then(function(response) {
+
+
+    if (!response.ok) {
+
+        throw new Error(
+
+            'Impossible de charger ECOLES_92_WB_FINIE.geojson ' +
+
+            '(erreur ' +
+            response.status +
+            ')'
+
+        );
+
+    }
+
+
+    return response.json();
+
+})
+
+
+.then(function(data) {
+
+
+    if (
+        !data.features
+    ) {
+
+        throw new Error(
+            'Le fichier GeoJSON ne contient aucune entité.'
+        );
+
+    }
+
+
+    // --------------------------------------------------------
+    // CREATION DES POINTS
+    // --------------------------------------------------------
+
+    data.features.forEach(
+
+        function(feature) {
+
+            creerEtablissement(
+                feature
+            );
+
+        }
+
+    );
+
+
+    // --------------------------------------------------------
+    // ZOOM SUR LES ETABLISSEMENTS
+    // --------------------------------------------------------
+
+    const points = [];
+
+
+    toutesLesEcoles.forEach(
+
+        function(ecole) {
+
+            points.push(
+
+                [
+                    ecole.latitude,
+                    ecole.longitude
+                ]
+
+            );
+
+        }
+
+    );
+
+
+    if (
+        points.length > 0
+    ) {
+
+        const bounds =
+            L.latLngBounds(
+                points
+            );
+
+
+        map.fitBounds(
+
+            bounds,
+
+            {
+
+                padding: [
+                    40,
+                    40
+                ]
+
+            }
+
+        );
+
+    }
+
+
+    // --------------------------------------------------------
+    // MESSAGE
+    // --------------------------------------------------------
+
+    document
+        .getElementById('message')
+        .textContent =
+
+        toutesLesEcoles.length +
+
+        ' établissements chargés.';
+
+
+})
+
+
+.catch(function(error) {
+
+
+    console.error(
+        'Erreur GeoJSON :',
+        error
+    );
+
+
+    document
+        .getElementById('message')
+        .textContent =
+        'Erreur : ' +
+        error.message;
+
+
+    alert(
+
+        'Impossible de charger le fichier GeoJSON.\n\n' +
+
+        error.message
+
+    );
+
+});
+
+
+// ============================================================
+// 11. RECHERCHE AVEC PROPOSITIONS
+// ============================================================
+
+const search =
+    document.getElementById(
+        'search'
+    );
+
+
+const suggestions =
+    document.getElementById(
+        'suggestions'
+    );
+
+
+search.addEventListener(
+
+    'input',
+
+    function() {
+
+
+        const recherche =
+            normaliser(
+                this.value
+            );
+
+
+        // Effacement des propositions
+
+        suggestions.innerHTML = '';
+
+
+        // Moins de 2 caractères
+
+        if (
+            recherche.length < 2
+        ) {
+
+            suggestions.style.display =
+                'none';
+
+            return;
+
+        }
+
+
+        // ----------------------------------------------------
+        // RECHERCHE
+        // ----------------------------------------------------
+
+        const resultats =
+
+            toutesLesEcoles
+
+                .filter(
+
+                    function(ecole) {
+
+                        return normaliser(
+                            ecole.nom
+                        ).includes(
+                            recherche
+                        );
+
+                    }
+
+                )
+
+                .slice(
+                    0,
+                    8
+                );
+
+
+        // ----------------------------------------------------
+        // AUCUN RESULTAT
+        // ----------------------------------------------------
+
+        if (
+            resultats.length === 0
+        ) {
+
+            suggestions.innerHTML =
+
+                '<div class="suggestion">' +
+
+                '<div class="suggestion-info">' +
+
+                'Aucun établissement trouvé'
+
+                +
+
+                '</div>' +
+
+                '</div>';
+
+
+            suggestions.style.display =
+                'block';
+
+            return;
+
+        }
+
+
+        // ----------------------------------------------------
+        // PROPOSITIONS
+        // ----------------------------------------------------
+
+        resultats.forEach(
+
+            function(ecole) {
+
+
+                const element =
+                    document.createElement(
+                        'div'
+                    );
+
+
+                element.className =
+                    'suggestion';
+
+
+                element.innerHTML =
+
+                    '<div class="suggestion-name">' +
+
+                    ecole.nom +
+
+                    '</div>' +
+
+
+                    '<div class="suggestion-info">' +
+
+                    ecole.typeOriginal +
+
+                    ' — ' +
+
+                    ecole.adresse +
+
+                    '</div>';
+
+
+                // ------------------------------------------------
+                // CLIC SUR UNE PROPOSITION
+                // ------------------------------------------------
+
+                element.addEventListener(
+
+                    'click',
+
+                    function() {
+
+
+                        // Fermer la liste
+
+                        suggestions.style.display =
+                            'none';
+
+
+                        // Remplir la recherche
+
+                        search.value =
+                            ecole.nom;
+
+
+                        // ------------------------------------------------
+                        // ACTIVER LE BON FILTRE SI NECESSAIRE
+                        // ------------------------------------------------
+
+                        if (
+                            ecole.type === 'chretien'
+                        ) {
+
+                            document
+                                .getElementById(
+                                    'filterchretien'
+                                )
+                                .checked = true;
+
+                            chretienLayer.addTo(
+                                map
+                            );
+
+                        }
+
+
+                        if (
+                            ecole.type === 'juif'
+                        ) {
+
+                            document
+                                .getElementById(
+                                    'filterjuif'
+                                )
+                                .checked = true;
+
+                            juifLayer.addTo(
+                                map
+                            );
+
+                        }
+
+
+                        if (
+                            ecole.type === 'musulman'
+                        ) {
+
+                            document
+                                .getElementById(
+                                    'filtermusulman'
+                                )
+                                .checked = true;
+
+                            musulmanLayer.addTo(
+                                map
+                            );
+
+                        }
+
+
+                        // ------------------------------------------------
+                        // DEPLACEMENT
+                        // ------------------------------------------------
+
+                        map.setView(
+
+                            [
+                                ecole.latitude,
+                                ecole.longitude
+                            ],
+
+                            17
+
+                        );
+
+
+                        // ------------------------------------------------
+                        // POPUP
+                        // ------------------------------------------------
+
+                        ecole.marker.openPopup();
+
+                    }
+
+                );
+
+
+                suggestions.appendChild(
+                    element
+                );
+
+            }
+
+        );
+
+
+        suggestions.style.display =
+            'block';
+
+    }
+
+);
+
+
+// ============================================================
+// 12. FERMER LES PROPOSITIONS
+// ============================================================
+
+document.addEventListener(
+
+    'click',
+
+    function(event) {
+
+
+        const container =
+            document.getElementById(
+                'searchContainer'
+            );
+
+
+        if (
+            !container.contains(
+                event.target
+            )
+        ) {
+
+            suggestions.style.display =
+                'none';
+
+        }
+
+    }
+
+);
+
+
+// ============================================================
+// 13. FILTRE CHRETIENS
+// ============================================================
+
+document
+    .getElementById(
+        'filterchretien'
+    )
+    .addEventListener(
+
+        'change',
+
+        function() {
+
+
+            if (
+                this.checked
+            ) {
+
+                chretienLayer.addTo(
+                    map
+                );
+
+            }
+
+            else {
+
+                map.removeLayer(
+                    chretienLayer
+                );
+
+            }
+
+        }
+
+    );
+
+
+// ============================================================
+// 14. FILTRE JUIF
+// ============================================================
+
+document
+    .getElementById(
+        'filterjuif'
+    )
+    .addEventListener(
+
+        'change',
+
+        function() {
+
+
+            if (
+                this.checked
+            ) {
+
+                juifLayer.addTo(
+                    map
+                );
+
+            }
+
+            else {
+
+                map.removeLayer(
+                    juifLayer
+                );
+
+            }
+
+        }
+
+    );
+
+
+// ============================================================
+// 15. FILTRE musulmans
+// ============================================================
+
+document
+    .getElementById(
+        'filtermusulman'
+    )
+    .addEventListener(
+
+        'change',
+
+        function() {
+
+
+            if (
+                this.checked
+            ) {
+
+                musulmanLayer.addTo(
+                    map
+                );
+
+            }
+
+            else {
+
+                map.removeLayer(
+                    musulmanLayer
+                );
+
+            }
+
+        }
+
+    );
+
+// ============================================================
+// 15. FILTRE Laique
+// ============================================================
+
+document
+    .getElementById(
+        'filterlaique'
+    )
+    .addEventListener(
+
+        'change',
+
+        function() {
+
+
+            if (
+                this.checked
+            ) {
+
+                laiqueLayer.addTo(
+                    map
+                );
+
+            }
+
+            else {
+
+                map.removeLayer(
+                    laiqueLayer
+                );
+
+            }
+
+        }
+
+    );
+
+
+
+
+// ============================================================
+// 16. OUVERTURE / FERMETURE DU PANNEAU
+// ============================================================
+
+const menuButton =
+    document.getElementById(
+        'menuButton'
+    );
+
+
+const controls =
+    document.getElementById(
+        'controls'
+    );
+
+
+menuButton.addEventListener(
+
+    'click',
+
+    function() {
+
+
+        controls.classList.toggle(
+            'hidden'
+        );
+
+
+        if (
+            controls.classList.contains(
+                'hidden'
+            )
+        ) {
+
+            menuButton.innerHTML =
+                '☰';
+
+        }
+
+        else {
+
+            menuButton.innerHTML =
+                '✕';
+
+        }
+
+    }
+
+);
+
+
+// ============================================================
+// 17. TRIANGLE ROUGE "8"
+// ============================================================
+
+const triangle8Icon =
+    L.divIcon({
+
+        className: '',
+
+        html: `
+
+            <div class="triangle-8">
+
+                <span>8</span>
+
+            </div>
+
+        `,
+
+        iconSize: [
+            40,
+            40
+        ],
+
+        iconAnchor: [
+            20,
+            35
+        ],
+
+        popupAnchor: [
+            0,
+            -35
+        ]
+
+    });
+
+
+const triangle8 =
+    L.marker(
+
+        [
+            48.788510,
+            2.112678
+        ],
+
+        {
+
+            icon:
+                triangle8Icon,
+
+            zIndexOffset:
+                1000
+
+        }
+
+    ).addTo(map);
+
+
+triangle8.bindPopup(
+
+    '<strong>Balbeck 8</strong><br>' +
+
+    'SATORY'
+
+);
+
+
+// ============================================================
+// 18. LEGENDE
+// ============================================================
+
+const legend =
+    L.control({
+
+        position:
+            'bottomright'
+
+    });
+
+
+legend.onAdd =
+    function() {
+
+
+        const div =
+            L.DomUtil.create(
+                'div',
+                'legend'
+            );
+
+
+        div.innerHTML =
+
+            '<div class="legend-title">' +
+
+            'Établissements scolaires' +
+
+            '</div>' +
+
+
+            '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:white"></span>' +
+
+            'Chrétiens' +
+
+            '</div>' +
+
+
+            '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:yellow"></span>' +
+
+            'Juifs' +
+
+            '</div>' +
+
+ 	    '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:#000091"></span>' +
+
+            'Laïque' +
+
+            '</div>' +
+
+
+
+            '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:green"></span>' +
+
+            'Musulmans' +
+
+            '</div>';
+
+
+        return div;
+
+    };
+
+
+legend.addTo(map);
+
+
+</script>
+
+</body>
+
+</html>
