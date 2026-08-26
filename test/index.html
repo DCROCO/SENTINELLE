@@ -539,6 +539,13 @@
          FILTRES
     ====================================================== -->
 
+    <div class="display-mode">
+        <label class="switch-label">
+            <input type="checkbox" id="switchTypeEtabl">
+            <span>Afficher par type d'établissement</span>
+        </label>
+    </div>
+
     <div class="filters">
 
 
@@ -840,7 +847,31 @@ function couleurType(type) {
 
 
 // ============================================================
-// 8. ICONE DES ETABLISSEMENTS
+// 8. COULEUR SELON LE TYPE D'ETABLISSEMENT
+// ============================================================
+
+function couleurTypeEtablissement(type) {
+
+    const texte = normaliser(type);
+
+    if (texte === 'ecole') {
+        return 'green';
+    }
+
+    if (texte === 'college') {
+        return 'orange';
+    }
+
+    if (texte === 'lycee') {
+        return '#000091';
+    }
+
+    return '#888888';
+}
+
+
+// ============================================================
+// 9. ICONE DES ETABLISSEMENTS
 // ============================================================
 
 function creerIcone(couleur) {
@@ -1126,6 +1157,12 @@ function creerEtablissement(feature) {
 
         typeOriginal:
             typeOriginal,
+
+        typeEtabl:
+            typeEtabl,
+
+        typeEtablOriginal:
+            typeEtablOriginal,
 
         latitude:
             latitude,
@@ -1879,7 +1916,7 @@ triangle8.bindPopup(
 
 
 // ============================================================
-// 18. LEGENDE
+// 18. LEGENDE DYNAMIQUE
 // ============================================================
 
 const legend =
@@ -1894,62 +1931,14 @@ const legend =
 legend.onAdd =
     function() {
 
-
         const div =
             L.DomUtil.create(
                 'div',
                 'legend'
             );
 
-
-        div.innerHTML =
-
-            '<div class="legend-title">' +
-
-            'Établissements scolaires' +
-
-            '</div>' +
-
-
-            '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:white"></span>' +
-
-            'Chrétiens' +
-
-            '</div>' +
-
-
-            '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:yellow"></span>' +
-
-            'Juifs' +
-
-            '</div>' +
-
- 	    '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:#000091"></span>' +
-
-            'Laïque' +
-
-            '</div>' +
-
-
-
-            '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:green"></span>' +
-
-            'Musulmans' +
-
-            '</div>';
-
+        div.id =
+            'dynamicLegend';
 
         return div;
 
@@ -1958,6 +1947,215 @@ legend.onAdd =
 
 legend.addTo(map);
 
+
+// ============================================================
+// 19. MISE A JOUR DE LA LEGENDE
+// ============================================================
+
+function mettreAJourLegende() {
+
+    const div =
+        document.getElementById(
+            'dynamicLegend'
+        );
+
+    if (!div) return;
+
+
+    // --------------------------------------------------------
+    // MODE TYPE D'ETABLISSEMENT
+    // --------------------------------------------------------
+
+    if (modeTypeEtabl) {
+
+        div.innerHTML =
+
+            '<div class="legend-title">' +
+                'Type d’établissement' +
+            '</div>' +
+
+            '<div class="legend-item">' +
+
+                '<span class="legend-color" ' +
+                'style="background:green"></span>' +
+
+                'Écoles' +
+
+            '</div>' +
+
+            '<div class="legend-item">' +
+
+                '<span class="legend-color" ' +
+                'style="background:orange"></span>' +
+
+                'Collèges' +
+
+            '</div>' +
+
+            '<div class="legend-item">' +
+
+                '<span class="legend-color" ' +
+                'style="background:#000091"></span>' +
+
+                'Lycées' +
+
+            '</div>';
+
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // MODE CONFESSION
+    // --------------------------------------------------------
+
+    div.innerHTML =
+
+        '<div class="legend-title">' +
+            'Établissements scolaires' +
+        '</div>' +
+
+        '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:white"></span>' +
+
+            'Chrétiens' +
+
+        '</div>' +
+
+        '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:#FFEE8C"></span>' +
+
+            'Juifs' +
+
+        '</div>' +
+
+        '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:#000091"></span>' +
+
+            'Laïques' +
+
+        '</div>' +
+
+        '<div class="legend-item">' +
+
+            '<span class="legend-color" ' +
+            'style="background:green"></span>' +
+
+            'Musulmans' +
+
+        '</div>';
+
+}
+
+
+// ============================================================
+// 20. MODE D'AFFICHAGE
+// ============================================================
+
+let modeTypeEtabl =
+    false;
+
+
+function appliquerModeAffichage() {
+
+    toutesLesEcoles.forEach(
+
+        function(ecole) {
+
+            let couleur;
+
+
+            if (modeTypeEtabl) {
+
+                couleur =
+                    couleurTypeEtablissement(
+                        ecole.typeEtabl
+                    );
+
+            }
+
+            else {
+
+                couleur =
+                    couleurType(
+                        ecole.type
+                    );
+
+            }
+
+
+            ecole.marker.setIcon(
+
+                creerIcone(
+                    couleur
+                )
+
+            );
+
+        }
+
+    );
+
+
+    mettreAJourLegende();
+
+}
+
+
+// ============================================================
+// 21. SWITCH TYPE D'ETABLISSEMENT
+// ============================================================
+
+document
+    .getElementById(
+        'switchTypeEtabl'
+    )
+    .addEventListener(
+
+        'change',
+
+        function() {
+
+            modeTypeEtabl =
+                this.checked;
+
+
+            const filters =
+                document.querySelector(
+                    '.filters'
+                );
+
+
+            if (modeTypeEtabl) {
+
+                filters.style.display =
+                    'none';
+
+            }
+
+            else {
+
+                filters.style.display =
+                    'block';
+
+            }
+
+
+            appliquerModeAffichage();
+
+        }
+
+    );
+
+
+// Initialisation de la légende
+mettreAJourLegende();
 
 </script>
 
