@@ -546,7 +546,7 @@
         </label>
     </div>
 
-    <div class="filters">
+    <div class="filters" id="filtersContainer">
 
 
         <div class="filter">
@@ -719,6 +719,11 @@ const musulmanLayer =
     L.layerGroup().addTo(map);
 
 const laiqueLayer =
+    L.layerGroup().addTo(map);
+
+
+// Groupe principal utilisé par les filtres
+const tousLesMarqueursLayer =
     L.layerGroup().addTo(map);
 
 
@@ -957,9 +962,21 @@ function creerEtablissement(feature) {
         '';
 
 
+    // IMPORTANT : nom exact du champ GeoJSON
+    const typeEtablOriginal =
+        props.Type_etabl ||
+        '';
+
+
     const type =
         determinerType(
             typeOriginal
+        );
+
+
+    const typeEtabl =
+        normaliser(
+            typeEtablOriginal
         );
 
 
@@ -1056,9 +1073,13 @@ function creerEtablissement(feature) {
 
         '<div class="popup-type">' +
 
-        '<strong>Type :</strong> ' +
+        '<strong>Confession :</strong> ' +
 
         typeOriginal +
+
+        '<br><strong>Type d’établissement :</strong> ' +
+
+        typeEtablOriginal +
 
         '</div>' +
 
@@ -1078,63 +1099,12 @@ function creerEtablissement(feature) {
 
 
     // --------------------------------------------------------
-    // AJOUT AU GROUPE CORRESPONDANT
+    // AJOUT AU GROUPE PRINCIPAL
     // --------------------------------------------------------
 
-    if (
-        type === 'juif'
-    ) {
-
-        juifLayer.addLayer(
-            marker
-        );
-
-    }
-
-
-    else if (
-        type === 'chretien'
-    ) {
-
-        chretienLayer.addLayer(
-            marker
-        );
-
-    }
-
-
-    else if (
-        type === 'musulman'
-    ) {
-
-        musulmanLayer.addLayer(
-            marker
-        );
-
-    }
-
-     else if (
-        type === 'laique'
-    ) {
-
-        laiqueLayer.addLayer(
-            marker
-        );
-
-    }
-
-
-
-    else {
-
-        /*
-         * Si une valeur inattendue est rencontrée,
-         * le point reste bleu.
-         */
-
-        marker.addTo(map);
-
-    }
+    tousLesMarqueursLayer.addLayer(
+        marker
+    );
 
 
     // --------------------------------------------------------
@@ -1158,7 +1128,7 @@ function creerEtablissement(feature) {
         typeOriginal:
             typeOriginal,
 
-        Type_etabl:
+        typeEtabl:
             typeEtabl,
 
         typeEtablOriginal:
@@ -1513,56 +1483,30 @@ search.addEventListener(
 
 
                         // ------------------------------------------------
-                        // ACTIVER LE BON FILTRE SI NECESSAIRE
+                        // ACTIVER LE FILTRE CORRESPONDANT
                         // ------------------------------------------------
 
-                        if (
-                            ecole.type === 'chretien'
-                        ) {
+                        const cleFiltre =
+                            modeTypeEtabl
+                                ? ecole.typeEtabl
+                                : ecole.type;
 
-                            document
-                                .getElementById(
-                                    'filterchretien'
-                                )
-                                .checked = true;
-
-                            chretienLayer.addTo(
-                                map
-                            );
-
-                        }
-
+                        const etat =
+                            obtenirEtatActif();
 
                         if (
-                            ecole.type === 'juif'
+                            Object.prototype.hasOwnProperty.call(
+                                etat,
+                                cleFiltre
+                            )
                         ) {
 
-                            document
-                                .getElementById(
-                                    'filterjuif'
-                                )
-                                .checked = true;
+                            etat[cleFiltre] =
+                                true;
 
-                            juifLayer.addTo(
-                                map
-                            );
+                            mettreAJourFiltres();
 
-                        }
-
-
-                        if (
-                            ecole.type === 'musulman'
-                        ) {
-
-                            document
-                                .getElementById(
-                                    'filtermusulman'
-                                )
-                                .checked = true;
-
-                            musulmanLayer.addTo(
-                                map
-                            );
+                            appliquerFiltres();
 
                         }
 
@@ -1645,156 +1589,254 @@ document.addEventListener(
 
 
 // ============================================================
-// 13. FILTRE CHRETIENS
+// 13. FILTRES DYNAMIQUES
 // ============================================================
 
-document
-    .getElementById(
-        'filterchretien'
-    )
-    .addEventListener(
-
-        'change',
-
-        function() {
+let modeTypeEtabl = false;
 
 
-            if (
-                this.checked
-            ) {
+const filtresConfession = [
+    { id: 'chretien', label: 'Chrétiens', couleur: 'white' },
+    { id: 'juif', label: 'Juifs', couleur: '#FFEE8C' },
+    { id: 'musulman', label: 'Musulmans', couleur: 'green' },
+    { id: 'laique', label: 'Laïques', couleur: '#000091' }
+];
 
-                chretienLayer.addTo(
-                    map
+
+const filtresTypeEtabl = [
+    { id: 'ecole', label: 'Écoles', couleur: 'green' },
+    { id: 'college', label: 'Collèges', couleur: 'orange' },
+    { id: 'lycee', label: 'Lycées', couleur: '#000091' }
+];
+
+
+const etatFiltres = {
+    confession: {
+        chretien: true,
+        juif: true,
+        musulman: true,
+        laique: true
+    },
+
+    typeEtabl: {
+        ecole: true,
+        college: true,
+        lycee: true
+    }
+};
+
+
+function obtenirFiltresActifs() {
+
+    return modeTypeEtabl
+        ? filtresTypeEtabl
+        : filtresConfession;
+
+}
+
+
+function obtenirEtatActif() {
+
+    return modeTypeEtabl
+        ? etatFiltres.typeEtabl
+        : etatFiltres.confession;
+
+}
+
+
+function mettreAJourFiltres() {
+
+    const container =
+        document.getElementById(
+            'filtersContainer'
+        );
+
+    const filtres =
+        obtenirFiltresActifs();
+
+    const etat =
+        obtenirEtatActif();
+
+    container.innerHTML = '';
+
+
+    filtres.forEach(
+        function(filtre) {
+
+            const div =
+                document.createElement('div');
+
+            div.className =
+                'filter';
+
+
+            const label =
+                document.createElement('label');
+
+
+            const checkbox =
+                document.createElement('input');
+
+            checkbox.type =
+                'checkbox';
+
+            checkbox.checked =
+                etat[filtre.id];
+
+
+            const couleur =
+                document.createElement('span');
+
+            couleur.className =
+                'filter-color';
+
+            couleur.style.background =
+                filtre.couleur;
+
+
+            label.appendChild(
+                checkbox
+            );
+
+            label.appendChild(
+                couleur
+            );
+
+            label.appendChild(
+                document.createTextNode(
+                    ' ' + filtre.label
+                )
+            );
+
+
+            div.appendChild(
+                label
+            );
+
+            container.appendChild(
+                div
+            );
+
+
+            checkbox.addEventListener(
+                'change',
+                function() {
+
+                    etat[filtre.id] =
+                        this.checked;
+
+                    appliquerFiltres();
+
+                }
+            );
+
+        }
+    );
+
+}
+
+
+function appliquerFiltres() {
+
+    const etat =
+        obtenirEtatActif();
+
+
+    toutesLesEcoles.forEach(
+        function(ecole) {
+
+            const cle =
+                modeTypeEtabl
+                    ? ecole.typeEtabl
+                    : ecole.type;
+
+
+            const visible =
+                etat[cle] === true;
+
+
+            if (visible) {
+
+                tousLesMarqueursLayer.addLayer(
+                    ecole.marker
                 );
 
-            }
+            } else {
 
-            else {
-
-                map.removeLayer(
-                    chretienLayer
+                tousLesMarqueursLayer.removeLayer(
+                    ecole.marker
                 );
 
             }
 
         }
-
     );
 
 
-// ============================================================
-// 14. FILTRE JUIF
-// ============================================================
+    // Les anciens groupes confessionnels ne pilotent plus
+    // l'affichage.
+    [
+        chretienLayer,
+        juifLayer,
+        musulmanLayer,
+        laiqueLayer
+    ].forEach(
+        function(layer) {
 
-document
-    .getElementById(
-        'filterjuif'
-    )
-    .addEventListener(
-
-        'change',
-
-        function() {
-
-
-            if (
-                this.checked
-            ) {
-
-                juifLayer.addTo(
-                    map
-                );
-
-            }
-
-            else {
-
-                map.removeLayer(
-                    juifLayer
-                );
-
+            if (map.hasLayer(layer)) {
+                map.removeLayer(layer);
             }
 
         }
-
     );
 
+}
 
-// ============================================================
-// 15. FILTRE musulmans
-// ============================================================
 
 document
     .getElementById(
-        'filtermusulman'
+        'switchTypeEtabl'
     )
     .addEventListener(
-
         'change',
-
         function() {
 
-
-            if (
-                this.checked
-            ) {
-
-                musulmanLayer.addTo(
-                    map
-                );
-
-            }
-
-            else {
-
-                map.removeLayer(
-                    musulmanLayer
-                );
-
-            }
-
-        }
-
-    );
-
-// ============================================================
-// 15. FILTRE Laique
-// ============================================================
-
-document
-    .getElementById(
-        'filterlaique'
-    )
-    .addEventListener(
-
-        'change',
-
-        function() {
+            modeTypeEtabl =
+                this.checked;
 
 
-            if (
-                this.checked
-            ) {
+            // Les couleurs changent avec le mode.
+            toutesLesEcoles.forEach(
+                function(ecole) {
 
-                laiqueLayer.addTo(
-                    map
-                );
+                    const couleur =
+                        modeTypeEtabl
+                            ? couleurTypeEtablissement(
+                                ecole.typeEtabl
+                            )
+                            : couleurType(
+                                ecole.type
+                            );
 
-            }
+                    ecole.marker.setIcon(
+                        creerIcone(couleur)
+                    );
 
-            else {
+                }
+            );
 
-                map.removeLayer(
-                    laiqueLayer
-                );
 
-            }
+            mettreAJourFiltres();
+
+            appliquerFiltres();
+
+            mettreAJourLegende();
 
         }
-
     );
 
 
+mettreAJourFiltres();
 
 
 // ============================================================
@@ -1921,10 +1963,7 @@ triangle8.bindPopup(
 
 const legend =
     L.control({
-
-        position:
-            'bottomright'
-
+        position: 'bottomright'
     });
 
 
@@ -1948,10 +1987,6 @@ legend.onAdd =
 legend.addTo(map);
 
 
-// ============================================================
-// 19. MISE A JOUR DE LA LEGENDE
-// ============================================================
-
 function mettreAJourLegende() {
 
     const div =
@@ -1959,202 +1994,52 @@ function mettreAJourLegende() {
             'dynamicLegend'
         );
 
-    if (!div) return;
-
-
-    // --------------------------------------------------------
-    // MODE TYPE D'ETABLISSEMENT
-    // --------------------------------------------------------
-
-    if (modeTypeEtabl) {
-
-        div.innerHTML =
-
-            '<div class="legend-title">' +
-                'Type d’établissement' +
-            '</div>' +
-
-            '<div class="legend-item">' +
-
-                '<span class="legend-color" ' +
-                'style="background:green"></span>' +
-
-                'Écoles' +
-
-            '</div>' +
-
-            '<div class="legend-item">' +
-
-                '<span class="legend-color" ' +
-                'style="background:orange"></span>' +
-
-                'Collèges' +
-
-            '</div>' +
-
-            '<div class="legend-item">' +
-
-                '<span class="legend-color" ' +
-                'style="background:#000091"></span>' +
-
-                'Lycées' +
-
-            '</div>';
-
+    if (!div) {
         return;
     }
 
 
-    // --------------------------------------------------------
-    // MODE CONFESSION
-    // --------------------------------------------------------
+    const filtres =
+        obtenirFiltresActifs();
 
-    div.innerHTML =
 
+    let html =
         '<div class="legend-title">' +
-            'Établissements scolaires' +
-        '</div>' +
 
-        '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:white"></span>' +
-
-            'Chrétiens' +
-
-        '</div>' +
-
-        '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:#FFEE8C"></span>' +
-
-            'Juifs' +
-
-        '</div>' +
-
-        '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:#000091"></span>' +
-
-            'Laïques' +
-
-        '</div>' +
-
-        '<div class="legend-item">' +
-
-            '<span class="legend-color" ' +
-            'style="background:green"></span>' +
-
-            'Musulmans' +
+        (
+            modeTypeEtabl
+                ? 'Type d’établissement'
+                : 'Établissements scolaires'
+        ) +
 
         '</div>';
 
-}
 
+    filtres.forEach(
+        function(filtre) {
 
-// ============================================================
-// 20. MODE D'AFFICHAGE
-// ============================================================
+            html +=
+                '<div class="legend-item">' +
 
-let modeTypeEtabl =
-    false;
+                    '<span class="legend-color" ' +
+                    'style="background:' +
+                    filtre.couleur +
+                    '"></span>' +
 
+                    filtre.label +
 
-function appliquerModeAffichage() {
-
-    toutesLesEcoles.forEach(
-
-        function(ecole) {
-
-            let couleur;
-
-
-            if (modeTypeEtabl) {
-
-                couleur =
-                    couleurTypeEtablissement(
-                        ecole.typeEtabl
-                    );
-
-            }
-
-            else {
-
-                couleur =
-                    couleurType(
-                        ecole.type
-                    );
-
-            }
-
-
-            ecole.marker.setIcon(
-
-                creerIcone(
-                    couleur
-                )
-
-            );
+                '</div>';
 
         }
-
     );
 
 
-    mettreAJourLegende();
+    div.innerHTML =
+        html;
 
 }
 
 
-// ============================================================
-// 21. SWITCH TYPE D'ETABLISSEMENT
-// ============================================================
-
-document
-    .getElementById(
-        'switchTypeEtabl'
-    )
-    .addEventListener(
-
-        'change',
-
-        function() {
-
-            modeTypeEtabl =
-                this.checked;
-
-
-            const filters =
-                document.querySelector(
-                    '.filters'
-                );
-
-
-            if (modeTypeEtabl) {
-
-                filters.style.display =
-                    'none';
-
-            }
-
-            else {
-
-                filters.style.display =
-                    'block';
-
-            }
-
-
-            appliquerModeAffichage();
-
-        }
-
-    );
-
-
-// Initialisation de la légende
 mettreAJourLegende();
 
 </script>
