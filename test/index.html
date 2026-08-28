@@ -484,6 +484,43 @@
 
         }
 
+        /* =====================================================
+           POSITION EN TEMPS REEL
+        ====================================================== */
+
+        .location-button {
+            background: white;
+            width: 34px;
+            height: 34px;
+            border: none;
+            border-radius: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            cursor: pointer;
+            font-size: 20px;
+            line-height: 34px;
+            text-align: center;
+        }
+
+        .location-button:hover {
+            background: #f2f2f2;
+        }
+
+        .position-marker {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #1677ff;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #1677ff, 0 2px 8px rgba(0,0,0,0.45);
+            box-sizing: border-box;
+        }
+
+        .position-accuracy {
+            background: rgba(22,119,255,0.15);
+            border: 1px solid rgba(22,119,255,0.55);
+            border-radius: 50%;
+        }
+
     </style>
 
 </head>
@@ -646,6 +683,10 @@
 
     </div>
 
+    <div style="font-size:11px; color:#777; margin-top:8px;">
+        ⌖ Votre position est suivie en temps réel si la géolocalisation est autorisée.
+    </div>
+
 
 </div>
 
@@ -706,7 +747,42 @@ L.tileLayer(
 
 
 // ============================================================
-// 3. GROUPES D'ETABLISSEMENTS
+
+// ============================================================
+// 3. POLYGONES GEOJSON
+//    Les fichiers doivent être dans le même dossier que index.html
+// ============================================================
+
+// Charge un GeoJSON et l'ajoute au-dessus du fond satellite.
+fetch('Zone_SUD.geojson')
+    .then(response => response.json())
+    .then(data => {
+        L.geoJSON(data, {
+            style: {
+                color: 'blue',
+                weight: 4,
+                opacity: 1,
+                fillColor: 'blue',
+                fillOpacity: 0.15
+            }
+        }).addTo(map);
+    });
+
+fetch('Zone_NORD.geojson')
+    .then(response => response.json())
+    .then(data => {
+        L.geoJSON(data, {
+            style: {
+                color: 'red',
+                weight: 4,
+                opacity: 1,
+                fillColor: 'red',
+                fillOpacity: 0.15
+            }
+        }).addTo(map);
+    });
+
+// 4. GROUPES D'ETABLISSEMENTS
 // ============================================================
 
 const chretienLayer =
@@ -1891,6 +1967,123 @@ menuButton.addEventListener(
 
 
 // ============================================================
+
+// ============================================================
+// POSITION DE L'UTILISATEUR EN TEMPS REEL
+// ============================================================
+
+let positionMarker = null;
+let positionAccuracy = null;
+let positionWatchId = null;
+let premierePosition = true;
+
+const locationIcon = L.divIcon({
+    className: '',
+    html: '<div class="position-marker"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+});
+
+const locationControl = L.control({ position: 'topleft' });
+
+locationControl.onAdd = function() {
+    const container = L.DomUtil.create('div', 'leaflet-bar');
+    const button = L.DomUtil.create('button', 'location-button', container);
+
+    button.type = 'button';
+    button.title = 'Afficher ma position en temps réel';
+    button.setAttribute('aria-label', 'Afficher ma position en temps réel');
+    button.innerHTML = '⌖';
+
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.on(button, 'click', function() {
+        if (positionMarker) {
+            map.setView(positionMarker.getLatLng(), Math.max(map.getZoom(), 16));
+        } else {
+            demarrerGeolocalisation();
+        }
+    });
+
+    return container;
+};
+
+locationControl.addTo(map);
+
+function demarrerGeolocalisation() {
+    if (!navigator.geolocation) {
+        alert('La géolocalisation n’est pas prise en charge par ce navigateur.');
+        return;
+    }
+
+    if (positionWatchId !== null) {
+        return;
+    }
+
+    positionWatchId = navigator.geolocation.watchPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const precision = position.coords.accuracy;
+
+            const latLng = L.latLng(lat, lng);
+
+            if (!positionMarker) {
+                positionMarker = L.marker(latLng, {
+                    icon: locationIcon,
+                    zIndexOffset: 2000
+                }).addTo(map);
+
+                positionAccuracy = L.circle(latLng, {
+                    radius: precision,
+                    className: 'position-accuracy',
+                    color: '#1677ff',
+                    weight: 1,
+                    fillColor: '#1677ff',
+                    fillOpacity: 0.12,
+                    interactive: false
+                }).addTo(map);
+            } else {
+                positionMarker.setLatLng(latLng);
+                positionAccuracy.setLatLng(latLng);
+                positionAccuracy.setRadius(precision);
+            }
+
+            // Centre la carte uniquement lors de la première localisation.
+            // Ensuite, la position est suivie sans déplacer constamment la carte.
+            if (premierePosition) {
+                map.setView(latLng, Math.max(map.getZoom(), 16));
+                premierePosition = false;
+            }
+
+            // Les polygones restent visuellement au-dessus.
+            zoneRougeLayer.bringToFront();
+            zoneBleueLayer.bringToFront();
+            positionMarker.bringToFront();
+        },
+        function(error) {
+            console.error('Erreur de géolocalisation :', error);
+
+            let message = 'Impossible d’obtenir votre position.';
+            if (error.code === error.PERMISSION_DENIED) {
+                message = 'L’accès à votre position a été refusé.';
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+                message = 'Votre position est momentanément indisponible.';
+            } else if (error.code === error.TIMEOUT) {
+                message = 'La recherche de votre position a expiré.';
+            }
+
+            console.warn(message);
+        },
+        {
+            enableHighAccuracy: true,
+            maximumAge: 5000,
+            timeout: 10000
+        }
+    );
+}
+
+demarrerGeolocalisation();
+
 // 17. TRIANGLE ROUGE "8"
 // ============================================================
 
