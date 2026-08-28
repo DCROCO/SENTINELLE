@@ -782,6 +782,20 @@ fetch('Zone_NORD.geojson')
         }).addTo(map);
     });
 
+fetch('Zone_VERSAILLES.geojson')
+    .then(response => response.json())
+    .then(data => {
+        L.geoJSON(data, {
+            style: {
+                color: 'yellow',
+                weight: 4,
+                opacity: 1,
+                fillColor: 'yellow',
+                fillOpacity: 0.15
+            }
+        }).addTo(map);
+    });
+
 // 4. GROUPES D'ETABLISSEMENTS
 // ============================================================
 
